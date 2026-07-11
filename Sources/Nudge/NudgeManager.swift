@@ -19,10 +19,14 @@ final class NudgeManager {
 
     private init() {
         let saved = UserDefaults.standard.double(forKey: "nudgeInterval")
-        interval = saved > 0 ? saved : 20
-        // didSet doesn't fire for this assignment (Swift skips observers during
-        // init), so persist explicitly to keep UserDefaults in sync from launch.
-        UserDefaults.standard.set(interval, forKey: "nudgeInterval")
+        if saved > 0 {
+            interval = saved
+        } else {
+            interval = 20
+            // didSet doesn't fire for this assignment (Swift skips observers
+            // during init), so persist the default explicitly.
+            UserDefaults.standard.set(interval, forKey: "nudgeInterval")
+        }
     }
 
     func start() {
