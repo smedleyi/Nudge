@@ -17,13 +17,18 @@ else
 fi
 
 echo "Building Nudge (release)..."
+# .build/ is keyed to this checkout's absolute path (Swift's module cache
+# embeds it); a moved/renamed local checkout would otherwise hit a stale
+# "PCH was compiled with module cache path ..." build failure.
+rm -rf .build
 swift build -c release
 
 BUNDLE="/Applications/Nudge.app"
 
 # Kill running instance if any
-pkill -x Nudge 2>/dev/null || true
-sleep 0.5
+if pkill -x Nudge 2>/dev/null; then
+    sleep 0.5
+fi
 
 echo "Installing to $BUNDLE..."
 rm -rf "$BUNDLE"

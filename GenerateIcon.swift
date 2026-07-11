@@ -3,15 +3,6 @@ import AppKit
 // One-off icon generator: run with `swift GenerateIcon.swift`, then
 // `iconutil -c icns AppIcon.iconset -o AppIcon.icns`.
 
-func tinted(_ image: NSImage, color: NSColor) -> NSImage {
-    let copy = image.copy() as! NSImage
-    copy.lockFocus()
-    color.set()
-    NSRect(origin: .zero, size: copy.size).fill(using: .sourceAtop)
-    copy.unlockFocus()
-    return copy
-}
-
 // Renders directly into a pixel-exact bitmap context so output size never
 // depends on the screen's backing scale factor (NSImage.lockFocus does).
 func makeIconRep(pixelSize: Int) -> NSBitmapImageRep {
@@ -40,8 +31,8 @@ func makeIconRep(pixelSize: Int) -> NSBitmapImageRep {
         systemSymbolName: "cursorarrow.motionlines", accessibilityDescription: nil)
     {
         let config = NSImage.SymbolConfiguration(pointSize: size * 0.5, weight: .medium)
-        if let configured = symbol.withSymbolConfiguration(config) {
-            let white = tinted(configured, color: .white)
+            .applying(.init(paletteColors: [.white]))
+        if let white = symbol.withSymbolConfiguration(config) {
             let symSize = white.size
             let scale = (size * 0.62) / max(symSize.width, symSize.height)
             let drawSize = NSSize(width: symSize.width * scale, height: symSize.height * scale)
@@ -56,11 +47,11 @@ func makeIconRep(pixelSize: Int) -> NSBitmapImageRep {
     return rep
 }
 
-func savePNG(_ rep: NSBitmapImageRep, to path: String) {
+func savePNG(_ rep: NSBitmapImageRep, to path: String) throws {
     guard let data = rep.representation(using: .png, properties: [:]) else {
         fatalError("Failed to encode \(path)")
     }
-    try? data.write(to: URL(fileURLWithPath: path))
+    try data.write(to: URL(fileURLWithPath: path))
 }
 
 let iconsetPath = "AppIcon.iconset"
@@ -83,6 +74,6 @@ let specs: [(String, Int, Int)] = [
 for (name, points, scale) in specs {
     let pixelSize = points * scale
     let rep = makeIconRep(pixelSize: pixelSize)
-    savePNG(rep, to: "\(iconsetPath)/\(name)")
+    try savePNG(rep, to: "\(iconsetPath)/\(name)")
     print("Wrote \(name) (\(pixelSize)x\(pixelSize))")
 }

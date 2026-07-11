@@ -20,6 +20,9 @@ final class NudgeManager {
     private init() {
         let saved = UserDefaults.standard.double(forKey: "nudgeInterval")
         interval = saved > 0 ? saved : 20
+        // didSet doesn't fire for this assignment (Swift skips observers during
+        // init), so persist explicitly to keep UserDefaults in sync from launch.
+        UserDefaults.standard.set(interval, forKey: "nudgeInterval")
     }
 
     func start() {
@@ -43,15 +46,19 @@ final class NudgeManager {
     }
 
     private func scheduleTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let newTimer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             self?.nudge()
         }
+        // .common (not just .default) so the timer keeps firing while the
+        // status-bar menu is open, since AppKit runs the run loop in
+        // .eventTracking mode during menu tracking.
+        RunLoop.main.add(newTimer, forMode: .common)
+        timer = newTimer
     }
 
     private func nudge() {
         guard let location = CGEvent(source: nil)?.location else { return }
         let delta: CGFloat = moveRight ? 1 : -1
-        moveRight.toggle()
         let newLocation = CGPoint(x: location.x + delta, y: location.y)
         guard
             let event = CGEvent(
@@ -62,5 +69,6 @@ final class NudgeManager {
             )
         else { return }
         event.post(tap: .cghidEventTap)
+        moveRight.toggle()
     }
 }

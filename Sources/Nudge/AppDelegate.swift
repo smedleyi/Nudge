@@ -5,6 +5,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private let intervals: [TimeInterval] = [10, 20, 30, 60, 120, 300]
 
+    private var toggleItem: NSMenuItem!
+    private var intervalMenu: NSMenu!
+    private var launchAtLoginItem: NSMenuItem!
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         buildMenu()
@@ -18,8 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let toggleItem = NSMenuItem(
             title: "", action: #selector(toggleNudging), keyEquivalent: "")
         toggleItem.target = self
-        toggleItem.tag = 100
         menu.addItem(toggleItem)
+        self.toggleItem = toggleItem
 
         menu.addItem(NSMenuItem.separator())
 
@@ -35,14 +39,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let intervalItem = NSMenuItem(title: "Interval", action: nil, keyEquivalent: "")
         intervalItem.submenu = intervalMenu
         menu.addItem(intervalItem)
+        self.intervalMenu = intervalMenu
 
         menu.addItem(NSMenuItem.separator())
 
         let launchAtLoginItem = NSMenuItem(
             title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         launchAtLoginItem.target = self
-        launchAtLoginItem.tag = 200
         menu.addItem(launchAtLoginItem)
+        self.launchAtLoginItem = launchAtLoginItem
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(
@@ -81,29 +86,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } catch {
             NSLog("Nudge: failed to toggle launch at login: \(error)")
+            let alert = NSAlert()
+            alert.messageText = "Couldn't change Launch at Login"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
         }
         refresh()
     }
 
     private func refresh() {
-        guard let menu = statusItem.menu else { return }
+        toggleItem.title = NudgeManager.shared.isRunning ? "Stop Nudging" : "Start Nudging"
 
-        if let toggleItem = menu.item(withTag: 100) {
-            toggleItem.title = NudgeManager.shared.isRunning ? "Stop Nudging" : "Start Nudging"
+        for item in intervalMenu.items {
+            guard let seconds = item.representedObject as? TimeInterval else { continue }
+            item.state = seconds == NudgeManager.shared.interval ? .on : .off
         }
 
-        if let intervalItem = menu.items.first(where: { $0.submenu != nil }),
-            let submenu = intervalItem.submenu
-        {
-            for item in submenu.items {
-                guard let seconds = item.representedObject as? TimeInterval else { continue }
-                item.state = seconds == NudgeManager.shared.interval ? .on : .off
-            }
-        }
-
-        if let launchAtLoginItem = menu.item(withTag: 200) {
-            launchAtLoginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        }
+        launchAtLoginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
 
         let symbolName = NudgeManager.shared.isRunning ? "cursorarrow.motionlines" : "cursorarrow"
         if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Nudge") {
